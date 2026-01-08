@@ -19,18 +19,6 @@ A minimalist daily todo list application I built for my own purpose, but feel fr
 - **Services Architecture** - Clean separation of concerns
 - **localStorage** - Client-side data persistence
 
-## Getting Started
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ## Usage
 
@@ -63,15 +51,6 @@ src/
 └── main.jsx           # Entry point
 ```
 
-## Data Storage
-
-Your data is stored in your browser's localStorage:
-- `daily_todo_tasks` - One-time tasks
-- `daily_todo_routines` - Recurring routines
-
-To view your data: Open DevTools (F12) → Application → Local Storage → http://localhost:5173
-
-## License
 
 Feel free to use this for your own purposes!
 
