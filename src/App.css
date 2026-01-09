@@ -145,6 +145,12 @@
   color: #ff9500;
 }
 
+.help-menu-toggle.active {
+  background: #232323;
+  border-color: #ff9500;
+  color: #ff9500;
+}
+
 .notification-settings-toggle {
   background: #1a1a1a;
   border: 1px solid #252525;
@@ -167,6 +173,12 @@
 .notification-settings-toggle:hover {
   background: #232323;
   border-color: #3a3a3a;
+  color: #ff9500;
+}
+
+.notification-settings-toggle.active {
+  background: #232323;
+  border-color: #ff9500;
   color: #ff9500;
 }
 

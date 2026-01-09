@@ -55,6 +55,9 @@ function App() {
     const savedUsername = localStorage.getItem('daily_todo_username');
     if (savedUsername) {
       setUsername(savedUsername);
+    } else {
+      // First time user - prompt for name
+      setIsEditingUsername(true);
     }
     setItems(getDisplayItems());
     setStartDate(getTodayDate());
@@ -244,14 +247,14 @@ function App() {
           <div className="header-actions">
             <button
               onClick={() => setShowHelpMenu(!showHelpMenu)}
-              className="help-menu-toggle"
+              className={`help-menu-toggle ${showHelpMenu ? 'active' : ''}`}
               title="How to Use"
             >
               <HelpIcon />
             </button>
             <button
               onClick={() => setShowNotificationSettings(!showNotificationSettings)}
-              className="notification-settings-toggle"
+              className={`notification-settings-toggle ${showNotificationSettings ? 'active' : ''}`}
               title="Notification Settings"
             >
               <BellIcon />
