@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Dark version with white checkmark -->
+  <rect x="64" y="64" width="384" height="384" rx="80" fill="#1a1a1a"/>
+  
+  <!-- White checkmark -->
+  <path d="M160 256 L220 320 L360 180" 
+        stroke="#ffffff" 
+        stroke-width="48" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
+</svg>

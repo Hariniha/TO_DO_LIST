@@ -6,6 +6,9 @@ import {
   FireIcon,
   TrashIcon,
   EditIcon,
+  BellIcon,
+  VolumeIcon,
+  HelpIcon,
 } from './components/Icons';
 import {
   createTask,
@@ -38,6 +41,7 @@ function App() {
   const [routineTasks, setRoutineTasks] = useState(['']);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState(getNotificationSettings());
+  const [showHelpMenu, setShowHelpMenu] = useState(false);
   const [taskNotificationTime, setTaskNotificationTime] = useState('');
   const [routineNotificationTime, setRoutineNotificationTime] = useState('');
   const [username, setUsername] = useState('');
@@ -237,14 +241,77 @@ function App() {
             </div>
             <p className="date">{formatDisplayDate(getTodayDate())}</p>
           </div>
-          <button
-            onClick={() => setShowNotificationSettings(!showNotificationSettings)}
-            className="notification-settings-toggle"
-            title="Notification Settings"
-          >
-            🔔
-          </button>
+          <div className="header-actions">
+            <button
+              onClick={() => setShowHelpMenu(!showHelpMenu)}
+              className="help-menu-toggle"
+              title="How to Use"
+            >
+              <HelpIcon />
+            </button>
+            <button
+              onClick={() => setShowNotificationSettings(!showNotificationSettings)}
+              className="notification-settings-toggle"
+              title="Notification Settings"
+            >
+              <BellIcon />
+            </button>
+          </div>
         </header>
+
+        {showHelpMenu && (
+          <div className="help-menu">
+            <div className="help-menu-header">
+              <h3>How to Use This App</h3>
+              <button onClick={() => setShowHelpMenu(false)} className="help-menu-close">
+                ×
+              </button>
+            </div>
+            <div className="help-menu-content">
+              <div className="help-section">
+                <h4><ClockIcon className="help-icon" /> Create Tasks</h4>
+                <ul>
+                  <li>Type your task in the input field</li>
+                  <li>Optionally set a reminder time</li>
+                  <li>Click "Add" to save</li>
+                  <li>Check off tasks when complete</li>
+                </ul>
+              </div>
+              
+              <div className="help-section">
+                <h4><RoutineIcon className="help-icon" /> Create Routines</h4>
+                <ul>
+                  <li>Toggle "Make this a routine" checkbox</li>
+                  <li>Set start and end dates</li>
+                  <li>Add multiple tasks for your routine</li>
+                  <li>Set a daily reminder time (optional)</li>
+                  <li>Tasks repeat daily within the date range</li>
+                </ul>
+              </div>
+              
+              <div className="help-section">
+                <h4><BellIcon className="help-icon" /> Enable Notifications</h4>
+                <ul>
+                  <li>Click the bell icon to open settings</li>
+                  <li>Enable notifications and grant permission</li>
+                  <li>Set daily reminder time (default 9:00 AM)</li>
+                  <li>Enable routine reminders (default 8:00 PM)</li>
+                  <li>Test notifications with the bell icon</li>
+                </ul>
+              </div>
+              
+              <div className="help-section">
+                <h4><FireIcon className="help-icon" /> Track Progress</h4>
+                <ul>
+                  <li>See completion counts for routines</li>
+                  <li>Build streaks by completing routines daily</li>
+                  <li>Incomplete tasks carry over to next day</li>
+                  <li>View task creation dates</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showNotificationSettings && (
           <div className="notification-settings">
@@ -336,7 +403,7 @@ function App() {
                     onClick={() => testNotificationSound()}
                     title="Test notification sound"
                   >
-                    🔊
+                    <VolumeIcon />
                   </button>
                 </div>
               )}

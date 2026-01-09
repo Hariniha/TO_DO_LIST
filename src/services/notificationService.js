@@ -141,8 +141,20 @@ const playBeeps = (audioContext) => {
   }
 };
 
+// Helper function to create SVG icon data URI
+const getIconSvg = (type) => {
+  const icons = {
+    bell: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ff9500" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+    task: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ff9500" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    clock: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ff9500" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    routine: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ff9500" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    check: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2300ff00" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+  };
+  return `data:image/svg+xml,${icons[type] || icons.bell}`;
+};
+
 // Show a notification
-const showNotification = async (title, body, icon = '📋') => {
+const showNotification = async (title, body, iconType = 'task') => {
   console.log('showNotification called:', title, body);
   
   if (Notification.permission === 'granted') {
@@ -153,6 +165,9 @@ const showNotification = async (title, body, icon = '📋') => {
       
       console.log('Showing notification...');
       
+      const icon = getIconSvg(iconType);
+      const badge = getIconSvg('check');
+      
       // Check if Service Worker is supported and active
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         console.log('Using Service Worker for notification');
@@ -160,8 +175,8 @@ const showNotification = async (title, body, icon = '📋') => {
         const registration = await navigator.serviceWorker.ready;
         await registration.showNotification(title, {
           body,
-          icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
-          badge: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✓</text></svg>`,
+          icon,
+          badge,
           requireInteraction: false,
           silent: false,
           vibrate: [200, 100, 200],
@@ -175,8 +190,8 @@ const showNotification = async (title, body, icon = '📋') => {
         // Fallback to regular notification
         const notification = new Notification(title, {
           body,
-          icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
-          badge: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✓</text></svg>`,
+          icon,
+          badge,
           requireInteraction: false,
           silent: false,
           vibrate: [200, 100, 200],
@@ -243,21 +258,21 @@ export const sendDailyReminder = () => {
   
   if (summary.totalTasks === 0) {
     showNotification(
-      '📋 Daily Todo',
+      'Daily Todo',
       'No tasks for today. Start fresh!',
-      '✨'
+      'task'
     );
   } else if (summary.pendingTasks === 0) {
     showNotification(
-      '🎉 All Done!',
+      'All Done!',
       'You\'ve completed all your tasks for today!',
-      '🎉'
+      'check'
     );
   } else {
     showNotification(
-      '📋 Daily Reminder',
+      'Daily Reminder',
       `You have ${summary.pendingTasks} pending task${summary.pendingTasks > 1 ? 's' : ''} today`,
-      '📋'
+      'task'
     );
   }
 };
@@ -268,15 +283,15 @@ export const sendRoutineReminder = () => {
   
   if (summary.pendingRoutines > 0) {
     showNotification(
-      '🔄 Routine Reminder',
+      'Routine Reminder',
       `${summary.pendingRoutines} routine${summary.pendingRoutines > 1 ? 's are' : ' is'} incomplete today`,
-      '🔄'
+      'routine'
     );
   } else if (summary.totalTasks > 0) {
     showNotification(
-      '✅ Routines Complete',
+      'Great Job!',
       'All routines completed for today!',
-      '✅'
+      'check'
     );
   }
 };
@@ -320,9 +335,9 @@ export const scheduleNotifications = () => {
         const timeout = setTimeout(() => {
           console.log('Firing notification for task:', task.text);
           showNotification(
-            '⏰ Task Reminder',
+            'Task Reminder',
             task.text,
-            '⏰'
+            'clock'
           );
         }, msUntilTask);
         
@@ -350,9 +365,9 @@ export const scheduleNotifications = () => {
           const msUntilRoutine = targetTime - now;
           const timeout = setTimeout(() => {
             showNotification(
-              '🔄 Routine Reminder',
+              'Routine Reminder',
               `${routine.name}: ${progress.completed}/${progress.total} completed`,
-              '🔄'
+              'routine'
             );
           }, msUntilRoutine);
           
@@ -428,9 +443,9 @@ export const initializeNotifications = async () => {
 export const sendTestNotification = () => {
   console.log('Sending test notification...');
   showNotification(
-    '✅ Notifications Enabled',
+    'Notifications Enabled',
     'You\'ll receive reminders at your scheduled times',
-    '🔔'
+    'bell'
   );
 };
 

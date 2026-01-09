@@ -81,19 +81,21 @@
   font-size: 2rem;
   font-weight: 400;
   color: #f5f5f5;
-  background: #1e1e1e;
-  border: 1px solid #ff9500;
+  background: #1a1a1a;
+  border: 1px solid #333;
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
   font-family: inherit;
   letter-spacing: -0.5px;
   outline: none;
   min-width: 150px;
+  transition: all 0.2s ease;
 }
 
 .inline-username-input:focus {
-  border-color: #ffa500;
-  background: #232323;
+  border-color: #ff9500;
+  background: #1e1e1e;
+  box-shadow: 0 0 0 2px rgba(255, 149, 0, 0.1);
 }
 
 .header h1 {
@@ -112,19 +114,54 @@
   letter-spacing: 0.01em;
 }
 
-.notification-settings-toggle {
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.help-menu-toggle {
   background: #1a1a1a;
   border: 1px solid #252525;
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
   color: #777;
-  font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.help-menu-toggle .icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.help-menu-toggle:hover {
+  background: #232323;
+  border-color: #3a3a3a;
+  color: #ff9500;
+}
+
+.notification-settings-toggle {
+  background: #1a1a1a;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  color: #777;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.notification-settings-toggle .icon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .notification-settings-toggle:hover {
@@ -140,6 +177,113 @@
   padding: 1.25rem;
   margin-bottom: 1.75rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.help-menu {
+  background: #181818;
+  border: 1px solid #252525;
+  border-radius: 12px;
+  padding: 0;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.help-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #252525;
+  background: #1a1a1a;
+}
+
+.help-menu-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e8e8e8;
+}
+
+.help-menu-close {
+  background: transparent;
+  border: none;
+  color: #777;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.help-menu-close:hover {
+  background: #252525;
+  color: #ff9500;
+}
+
+.help-menu-content {
+  padding: 1.25rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.help-section {
+  margin-bottom: 1.5rem;
+}
+
+.help-section:last-child {
+  margin-bottom: 0;
+}
+
+.help-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.help-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #ff9500;
+}
+
+.help-section ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: disc;
+}
+
+.help-section li {
+  color: #aaa;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.help-section li:last-child {
+  margin-bottom: 0;
 }
 
 .notification-settings h3 {
@@ -772,29 +916,103 @@
 
   .user-greeting {
     flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .edit-name-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0.5rem;
+  }
+
+  .edit-name-btn .icon {
+    width: 1rem;
+    height: 1rem;
   }
 
   .user-greeting h1 {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .hello-text {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .inline-username-input {
-    font-size: 1.75rem;
-    min-width: 120px;
-    padding: 0.2rem 0.4rem;
+    font-size: 1.5rem;
+    min-width: 100px;
+    padding: 0.15rem 0.35rem;
+    border-width: 1px;
   }
-
   .date {
     font-size: 0.875rem;
   }
 
+  .header-actions {
+    gap: 0.375rem;
+  }
+
+  .help-menu-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .help-menu-toggle .icon {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
   .notification-settings-toggle {
-    align-self: flex-end;
-    margin-top: -2.5rem;
+    position: static;
+    margin-top: 0;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .notification-settings-toggle .icon {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .help-menu {
+    margin-bottom: 1.5rem;
+  }
+
+  .help-menu-header {
+    padding: 0.875rem 1rem;
+  }
+
+  .help-menu-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .help-menu-content {
+    padding: 1rem;
+    max-height: 50vh;
+  }
+
+  .help-section {
+    margin-bottom: 1.25rem;
+  }
+
+  .help-section h4 {
+    font-size: 0.85rem;
+  }
+
+  .help-section li {
+    font-size: 0.8rem;
+  }
+
+  .header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-left {
+    flex: 1;
+    min-width: 200px;
   }
 
   .notification-settings {
@@ -865,6 +1083,17 @@
   .task-time-input {
     padding: 0.35rem 0.5rem;
     font-size: 0.8rem;
+  }
+
+  .test-sound-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0.5rem;
+  }
+
+  .test-sound-btn .icon {
+    width: 1.1rem;
+    height: 1.1rem;
   }
 
   .recurring-toggle {
@@ -992,17 +1221,23 @@
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
   cursor: pointer;
-  font-size: 0.9rem;
   margin-left: 0.5rem;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #888;
+}
+
+.test-sound-btn .icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .test-sound-btn:hover {
   background: #1a1a1a;
   border-color: #ff9500;
+  color: #ff9500;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(255, 149, 0, 0.2);
 }
