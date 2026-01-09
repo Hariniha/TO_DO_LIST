@@ -24,6 +24,28 @@ export const saveNotificationSettings = (settings) => {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 };
 
+// Register Service Worker for notifications
+export const registerServiceWorker = async () => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      console.log('Service Worker registered successfully:', registration);
+      
+      // Wait for the service worker to be ready
+      await navigator.serviceWorker.ready;
+      console.log('Service Worker is ready');
+      
+      return registration;
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+      return null;
+    }
+  } else {
+    console.log('Service Workers not supported in this browser');
+    return null;
+  }
+};
+
 // Request notification permission
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
@@ -38,6 +60,10 @@ export const requestNotificationPermission = async () => {
   if (Notification.permission !== 'denied') {
     try {
       const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        // Register service worker after permission granted
+        await registerServiceWorker();
+      }
       return permission === 'granted';
     } catch (error) {
       // Fallback for older mobile browsers
@@ -116,31 +142,51 @@ const playBeeps = (audioContext) => {
 };
 
 // Show a notification
-const showNotification = (title, body, icon = '📋') => {
+const showNotification = async (title, body, icon = '📋') => {
   console.log('showNotification called:', title, body);
   
   if (Notification.permission === 'granted') {
     try {
       console.log('Playing notification sound...');
-      // Play sound (may not work on some mobile browsers)
+      // Play sound
       playNotificationSound();
       
       console.log('Showing notification...');
-      // Show notification
-      const notification = new Notification(title, {
-        body,
-        icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
-        badge: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✓</text></svg>`,
-        requireInteraction: false,
-        silent: false,
-        vibrate: [200, 100, 200], // Vibration pattern for mobile devices
-        tag: 'daily-todo-' + Date.now(), // Unique tag to allow multiple notifications
-      });
       
-      console.log('Notification created successfully');
-      
-      // Auto close after 10 seconds
-      setTimeout(() => notification.close(), 10000);
+      // Check if Service Worker is supported and active
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        console.log('Using Service Worker for notification');
+        // Use Service Worker for better mobile support
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(title, {
+          body,
+          icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
+          badge: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✓</text></svg>`,
+          requireInteraction: false,
+          silent: false,
+          vibrate: [200, 100, 200],
+          tag: 'daily-todo-' + Date.now(),
+          renotify: true,
+          data: { url: window.location.href },
+        });
+        console.log('Service Worker notification created successfully');
+      } else {
+        console.log('Using regular Notification API');
+        // Fallback to regular notification
+        const notification = new Notification(title, {
+          body,
+          icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
+          badge: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✓</text></svg>`,
+          requireInteraction: false,
+          silent: false,
+          vibrate: [200, 100, 200],
+          tag: 'daily-todo-' + Date.now(),
+        });
+        console.log('Regular notification created successfully');
+        
+        // Auto close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
+      }
     } catch (error) {
       console.error('Error showing notification:', error);
     }
@@ -356,7 +402,10 @@ export const scheduleNotifications = () => {
 };
 
 // Initialize notifications on app start
-export const initializeNotifications = () => {
+export const initializeNotifications = async () => {
+  // Register Service Worker first for better mobile support
+  await registerServiceWorker();
+  
   const settings = getNotificationSettings();
   
   if (settings.enabled && Notification.permission === 'granted') {
