@@ -28,12 +28,32 @@ export const saveNotificationSettings = (settings) => {
 export const registerServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      // Unregister any existing service workers first (for updates)
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        if (!registration.active || registration.active.scriptURL.includes('service-worker.js')) {
+          continue;
+        }
+      }
+      
+      const registration = await navigator.serviceWorker.register('/service-worker.js', {
+        scope: '/',
+      });
       console.log('Service Worker registered successfully:', registration);
       
-      // Wait for the service worker to be ready
+      // Wait for the service worker to be ready and active
       await navigator.serviceWorker.ready;
       console.log('Service Worker is ready');
+      
+      // Wait a bit to ensure controller is set
+      if (!navigator.serviceWorker.controller) {
+        await new Promise(resolve => {
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('Service Worker controller changed');
+            resolve();
+          }, { once: true });
+        });
+      }
       
       return registration;
     } catch (error) {
@@ -54,6 +74,8 @@ export const requestNotificationPermission = async () => {
   }
 
   if (Notification.permission === 'granted') {
+    // Ensure service worker is registered
+    await registerServiceWorker();
     return true;
   }
 
@@ -61,8 +83,11 @@ export const requestNotificationPermission = async () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
+        console.log('Notification permission granted, registering service worker...');
         // Register service worker after permission granted
         await registerServiceWorker();
+        // Wait a bit for service worker to be fully active
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
       return permission === 'granted';
     } catch (error) {
@@ -418,24 +443,45 @@ export const scheduleNotifications = () => {
 
 // Initialize notifications on app start
 export const initializeNotifications = async () => {
+  console.log('Initializing notifications...');
+  
   // Register Service Worker first for better mobile support
   await registerServiceWorker();
   
   const settings = getNotificationSettings();
+  console.log('Notification settings:', settings);
+  console.log('Notification permission:', Notification.permission);
   
   if (settings.enabled && Notification.permission === 'granted') {
+    // Wait a bit to ensure service worker is fully active
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    console.log('Scheduling notifications...');
     scheduleNotifications();
     
     // Keep the page alive for notifications on mobile browsers
     if ('wakeLock' in navigator) {
       try {
-        navigator.wakeLock.request('screen').catch((err) => {
-          console.log('Wake Lock not supported:', err);
+        const wakeLock = await navigator.wakeLock.request('screen');
+        console.log('Wake lock acquired');
+        
+        // Re-acquire wake lock when page becomes visible again
+        document.addEventListener('visibilitychange', async () => {
+          if (document.visibilityState === 'visible' && wakeLock.released) {
+            try {
+              await navigator.wakeLock.request('screen');
+              console.log('Wake lock re-acquired');
+            } catch (err) {
+              console.log('Failed to re-acquire wake lock:', err);
+            }
+          }
         });
       } catch (err) {
-        console.log('Wake Lock error:', err);
+        console.log('Wake Lock not supported or failed:', err);
       }
     }
+  } else {
+    console.log('Notifications not enabled or permission not granted');
   }
 };
 
