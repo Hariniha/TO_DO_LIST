@@ -41,7 +41,6 @@ function App() {
   const [taskNotificationTime, setTaskNotificationTime] = useState('');
   const [routineNotificationTime, setRoutineNotificationTime] = useState('');
   const [username, setUsername] = useState('');
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [tempUsername, setTempUsername] = useState('');
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const inputRef = useRef(null);
@@ -52,13 +51,11 @@ function App() {
     const savedUsername = localStorage.getItem('daily_todo_username');
     if (savedUsername) {
       setUsername(savedUsername);
-      setItems(getDisplayItems());
-      setStartDate(getTodayDate());
-      initializeNotifications();
-      inputRef.current?.focus();
-    } else {
-      setShowWelcomeModal(true);
     }
+    setItems(getDisplayItems());
+    setStartDate(getTodayDate());
+    initializeNotifications();
+    inputRef.current?.focus();
   }, []);
 
   const handleSaveUsername = (e) => {
@@ -67,14 +64,8 @@ function App() {
     if (name) {
       localStorage.setItem('daily_todo_username', name);
       setUsername(name);
-      setShowWelcomeModal(false);
       setIsEditingUsername(false);
       setTempUsername('');
-      if (showWelcomeModal) {
-        setItems(getDisplayItems());
-        setStartDate(getTodayDate());
-        initializeNotifications();
-      }
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
@@ -217,29 +208,6 @@ function App() {
 
   return (
     <div className="app">
-      {showWelcomeModal && (
-        <div className="modal-overlay">
-          <div className="welcome-modal">
-            <h2>Welcome to Your Daily Todo</h2>
-            <p>Let's get started! What should we call you?</p>
-            <form onSubmit={handleSaveUsername}>
-              <input
-                type="text"
-                value={tempUsername}
-                onChange={(e) => setTempUsername(e.target.value)}
-                placeholder="Enter your name..."
-                className="username-input"
-                autoFocus
-                maxLength={50}
-              />
-              <button type="submit" className="save-username-btn" disabled={!tempUsername.trim()}>
-                Start Using App
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
       <div className="container">
         <header className="header">
           <div className="header-left">
@@ -260,8 +228,8 @@ function App() {
                 </div>
               ) : (
                 <>
-                  <h1>Hello, {username}</h1>
-                  <button onClick={handleEditUsername} className="edit-name-btn" title="Edit your name">
+                  <h1>Hello{username ? `, ${username}` : ''}</h1>
+                  <button onClick={handleEditUsername} className="edit-name-btn" title={username ? "Edit your name" : "Add your name"}>
                     <EditIcon />
                   </button>
                 </>
