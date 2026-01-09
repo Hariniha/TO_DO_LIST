@@ -3,13 +3,14 @@ import { routineStorage } from './storageService.js';
 import { getTodayDate, formatDate, isDateInRange } from './dateService.js';
 
 // Create a new routine with multiple tasks
-export const createRoutine = (routineName, startDate, endDate, taskTexts) => {
+export const createRoutine = (routineName, startDate, endDate, taskTexts, notificationTime = null) => {
   const routines = routineStorage.getAll();
   const newRoutine = {
     id: Date.now().toString(),
     name: routineName,
     startDate: startDate,
     endDate: endDate || null,
+    notificationTime: notificationTime, // HH:MM format
     tasks: taskTexts.map((taskText, index) => ({
       id: `${Date.now()}-${index}`,
       text: taskText,

@@ -3,7 +3,7 @@ import { taskStorage } from './storageService.js';
 import { getTodayDate } from './dateService.js';
 
 // Create a new one-time task
-export const createTask = (taskText) => {
+export const createTask = (taskText, notificationTime = null) => {
   const tasks = taskStorage.getAll();
   const newTask = {
     id: Date.now().toString(),
@@ -11,6 +11,7 @@ export const createTask = (taskText) => {
     createdDate: getTodayDate(),
     completed: false,
     completedDate: null,
+    notificationTime: notificationTime, // HH:MM format
   };
   tasks.push(newTask);
   taskStorage.save(tasks);

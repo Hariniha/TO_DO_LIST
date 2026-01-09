@@ -3,6 +3,7 @@ export * from './dateService.js';
 export * from './taskService.js';
 export * from './routineService.js';
 export * from './displayService.js';
+export * from './notificationService.js';
 
 // Default exports for convenience
 export { default as dateService } from './dateService.js';

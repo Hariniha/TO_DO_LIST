@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import {
+  RoutineIcon,
+  ClockIcon,
+  FireIcon,
+  TrashIcon,
+  EditIcon,
+} from './components/Icons';
+import {
   createTask,
   deleteTask,
   toggleTaskCompletion,
@@ -13,6 +20,13 @@ import {
   getDisplayItems,
   getTodayDate,
   formatDisplayDate,
+  getNotificationSettings,
+  saveNotificationSettings,
+  requestNotificationPermission,
+  initializeNotifications,
+  scheduleNotifications,
+  sendTestNotification,
+  testNotificationSound,
 } from './services';
 
 function App() {
@@ -22,15 +36,67 @@ function App() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [routineTasks, setRoutineTasks] = useState(['']);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState(getNotificationSettings());
+  const [taskNotificationTime, setTaskNotificationTime] = useState('');
+  const [routineNotificationTime, setRoutineNotificationTime] = useState('');
+  const [username, setUsername] = useState('');
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [tempUsername, setTempUsername] = useState('');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
   const inputRef = useRef(null);
+  const usernameInputRef = useRef(null);
 
-  // Load tasks on mount
+  // Load username and tasks on mount
   useEffect(() => {
-    setItems(getDisplayItems());
-    setStartDate(getTodayDate());
-    // Focus input on load
-    inputRef.current?.focus();
+    const savedUsername = localStorage.getItem('daily_todo_username');
+    if (savedUsername) {
+      setUsername(savedUsername);
+      setItems(getDisplayItems());
+      setStartDate(getTodayDate());
+      initializeNotifications();
+      inputRef.current?.focus();
+    } else {
+      setShowWelcomeModal(true);
+    }
   }, []);
+
+  const handleSaveUsername = (e) => {
+    e.preventDefault();
+    const name = tempUsername.trim();
+    if (name) {
+      localStorage.setItem('daily_todo_username', name);
+      setUsername(name);
+      setShowWelcomeModal(false);
+      setIsEditingUsername(false);
+      setTempUsername('');
+      if (showWelcomeModal) {
+        setItems(getDisplayItems());
+        setStartDate(getTodayDate());
+        initializeNotifications();
+      }
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const handleEditUsername = () => {
+    setTempUsername(username);
+    setIsEditingUsername(true);
+    setTimeout(() => usernameInputRef.current?.focus(), 50);
+  };
+
+  const handleCancelInlineEdit = () => {
+    setIsEditingUsername(false);
+    setTempUsername('');
+  };
+
+  const handleUsernameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSaveUsername(e);
+    } else if (e.key === 'Escape') {
+      handleCancelInlineEdit();
+    }
+  };
 
   const handleAddTask = (e) => {
     e.preventDefault();
@@ -58,22 +124,27 @@ function App() {
         name: inputValue.trim(),
         startDate,
         endDate: endDate || null,
-        tasks: validTasks
+        tasks: validTasks,
+        notificationTime: routineNotificationTime || null
       });
       
-      createRoutine(inputValue.trim(), startDate, endDate || null, validTasks);
+      createRoutine(inputValue.trim(), startDate, endDate || null, validTasks, routineNotificationTime || null);
       setInputValue('');
       setIsRoutine(false);
       setStartDate(getTodayDate());
       setEndDate('');
       setRoutineTasks(['']);
+      setRoutineNotificationTime('');
       setItems(getDisplayItems());
+      scheduleNotifications(); // Reschedule notifications after adding routine
     } else {
       // Add one-time task
       if (inputValue.trim()) {
-        createTask(inputValue.trim());
+        createTask(inputValue.trim(), taskNotificationTime || null);
         setInputValue('');
+        setTaskNotificationTime('');
         setItems(getDisplayItems());
+        scheduleNotifications(); // Reschedule notifications after adding task
       }
     }
     
@@ -87,6 +158,7 @@ function App() {
       toggleTaskCompletion(itemId);
     }
     setItems(getDisplayItems());
+    scheduleNotifications(); // Reschedule after task state change
   };
 
   const handleDeleteItem = (itemId, itemType) => {
@@ -114,13 +186,157 @@ function App() {
     setRoutineTasks(updated);
   };
 
+  const handleToggleNotifications = async () => {
+    if (!notificationSettings.enabled) {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        const newSettings = { ...notificationSettings, enabled: true };
+        setNotificationSettings(newSettings);
+        saveNotificationSettings(newSettings);
+        scheduleNotifications();
+        sendTestNotification();
+      } else {
+        alert('Please allow notifications in your browser settings');
+      }
+    } else {
+      const newSettings = { ...notificationSettings, enabled: false };
+      setNotificationSettings(newSettings);
+      saveNotificationSettings(newSettings);
+      scheduleNotifications();
+    }
+  };
+
+  const handleNotificationSettingChange = (field, value) => {
+    const newSettings = { ...notificationSettings, [field]: value };
+    setNotificationSettings(newSettings);
+    saveNotificationSettings(newSettings);
+    if (notificationSettings.enabled) {
+      scheduleNotifications();
+    }
+  };
+
   return (
     <div className="app">
+      {showWelcomeModal && (
+        <div className="modal-overlay">
+          <div className="welcome-modal">
+            <h2>Welcome to Your Daily Todo</h2>
+            <p>Let's get started! What should we call you?</p>
+            <form onSubmit={handleSaveUsername}>
+              <input
+                type="text"
+                value={tempUsername}
+                onChange={(e) => setTempUsername(e.target.value)}
+                placeholder="Enter your name..."
+                className="username-input"
+                autoFocus
+                maxLength={50}
+              />
+              <button type="submit" className="save-username-btn" disabled={!tempUsername.trim()}>
+                Start Using App
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="container">
         <header className="header">
-          <h1>Today</h1>
-          <p className="date">{formatDisplayDate(getTodayDate())}</p>
+          <div className="header-left">
+            <div className="user-greeting">
+              {isEditingUsername ? (
+                <div className="inline-name-edit">
+                  <span className="hello-text">Hello,</span>
+                  <input
+                    ref={usernameInputRef}
+                    type="text"
+                    value={tempUsername}
+                    onChange={(e) => setTempUsername(e.target.value)}
+                    onBlur={handleSaveUsername}
+                    onKeyDown={handleUsernameKeyDown}
+                    className="inline-username-input"
+                    maxLength={50}
+                  />
+                </div>
+              ) : (
+                <>
+                  <h1>Hello, {username}</h1>
+                  <button onClick={handleEditUsername} className="edit-name-btn" title="Edit your name">
+                    <EditIcon />
+                  </button>
+                </>
+              )}
+            </div>
+            <p className="date">{formatDisplayDate(getTodayDate())}</p>
+          </div>
+          <button
+            onClick={() => setShowNotificationSettings(!showNotificationSettings)}
+            className="notification-settings-toggle"
+            title="Notification Settings"
+          >
+            🔔
+          </button>
         </header>
+
+        {showNotificationSettings && (
+          <div className="notification-settings">
+            <h3>Notification Settings</h3>
+            
+            <div className="setting-row">
+              <label className="setting-label">
+                <input
+                  type="checkbox"
+                  checked={notificationSettings.enabled}
+                  onChange={handleToggleNotifications}
+                />
+                <span>Enable Notifications</span>
+              </label>
+            </div>
+
+            {notificationSettings.enabled && (
+              <>
+                <div className="setting-row">
+                  <label className="setting-label">
+                    Daily Reminder Time
+                    <input
+                      type="time"
+                      value={notificationSettings.dailyReminderTime}
+                      onChange={(e) => handleNotificationSettingChange('dailyReminderTime', e.target.value)}
+                      className="time-input"
+                    />
+                  </label>
+                  <span className="setting-description">Get a summary of pending tasks</span>
+                </div>
+
+                <div className="setting-row">
+                  <label className="setting-label">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.routineRemindersEnabled}
+                      onChange={(e) => handleNotificationSettingChange('routineRemindersEnabled', e.target.checked)}
+                    />
+                    <span>Routine Reminders</span>
+                  </label>
+                </div>
+
+                {notificationSettings.routineRemindersEnabled && (
+                  <div className="setting-row">
+                    <label className="setting-label">
+                      Routine Reminder Time
+                      <input
+                        type="time"
+                        value={notificationSettings.routineReminderTime}
+                        onChange={(e) => handleNotificationSettingChange('routineReminderTime', e.target.value)}
+                        className="time-input"
+                      />
+                    </label>
+                    <span className="setting-description">Check incomplete routines</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleAddTask} className="add-task-form">
           <div className="input-wrapper">
@@ -135,6 +351,28 @@ function App() {
             />
             
             <div className="form-controls">
+              {!isRoutine && (
+                <div className="task-notification-time">
+                  <label className="time-label">
+                    Remind me at:
+                    <input
+                      type="time"
+                      value={taskNotificationTime}
+                      onChange={(e) => setTaskNotificationTime(e.target.value)}
+                      className="task-time-input"
+                    />
+                  </label>
+                  <button 
+                    type="button" 
+                    className="test-sound-btn"
+                    onClick={() => testNotificationSound()}
+                    title="Test notification sound"
+                  >
+                    🔊
+                  </button>
+                </div>
+              )}
+              
               <label className="recurring-toggle">
                 <input
                   type="checkbox"
@@ -168,6 +406,15 @@ function App() {
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         min={startDate}
+                        className="date-input"
+                      />
+                    </div>
+                    <div className="date-input-group">
+                      <label>Remind at</label>
+                      <input
+                        type="time"
+                        value={routineNotificationTime}
+                        onChange={(e) => setRoutineNotificationTime(e.target.value)}
                         className="date-input"
                       />
                     </div>
@@ -228,7 +475,8 @@ function App() {
                       <div className="routine-title-section">
                         <span className="routine-name">{item.name}</span>
                         <span className="routine-badge">
-                          🔄 Routine
+                          <RoutineIcon className="badge-icon" />
+                          Routine
                         </span>
                       </div>
                       <button
@@ -236,7 +484,7 @@ function App() {
                         className="delete-button"
                         aria-label="Delete routine"
                       >
-                        ×
+                        <TrashIcon />
                       </button>
                     </div>
                     
@@ -245,12 +493,19 @@ function App() {
                         {formatDisplayDate(item.startDate)} 
                         {item.endDate && ` - ${formatDisplayDate(item.endDate)}`}
                       </span>
+                      {item.notificationTime && (
+                        <span className="notification-time-badge">
+                          <ClockIcon className="badge-icon" />
+                          {item.notificationTime}
+                        </span>
+                      )}
                       <span className="routine-progress">
                         {getRoutineProgress(item).completed}/{getRoutineProgress(item).total} completed
                       </span>
                       {getRoutineStreak(item) > 0 && (
                         <span className="streak">
-                          🔥 {getRoutineStreak(item)} day streak
+                          <FireIcon className="badge-icon" />
+                          {getRoutineStreak(item)} day streak
                         </span>
                       )}
                     </div>
@@ -284,6 +539,12 @@ function App() {
                       </label>
                       <div className="task-text-container">
                         <span className="task-text">{item.text}</span>
+                        {item.notificationTime && (
+                          <span className="notification-time-badge">
+                            <ClockIcon className="badge-icon" />
+                            {item.notificationTime}
+                          </span>
+                        )}
                         {isTaskCarriedOver(item) && (
                           <span className="carried-over-tag">
                             From {formatDisplayDate(item.createdDate)}
@@ -296,7 +557,7 @@ function App() {
                       className="delete-button"
                       aria-label="Delete task"
                     >
-                      ×
+                      <TrashIcon />
                     </button>
                   </li>
                 )
