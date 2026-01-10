@@ -6,6 +6,11 @@ import { getRoutineProgress } from './routineService.js';
 // Notification settings storage
 const SETTINGS_KEY = 'daily_todo_notification_settings';
 
+// Get username for personalized notifications
+const getUsername = () => {
+  return localStorage.getItem('daily_todo_username') || '';
+};
+
 const defaultSettings = {
   enabled: false,
   dailyReminderTime: '09:00', // 9 AM default
@@ -280,23 +285,25 @@ export const getDailySummary = () => {
 // Send daily reminder notification
 export const sendDailyReminder = () => {
   const summary = getDailySummary();
+  const username = getUsername();
+  const greeting = username ? `Hyyy ${username}! ` : 'Hey! ';
   
   if (summary.totalTasks === 0) {
     showNotification(
       'Daily Todo',
-      'No tasks for today. Start fresh!',
+      `${greeting}No tasks for today. Start fresh!`,
       'task'
     );
   } else if (summary.pendingTasks === 0) {
     showNotification(
       'All Done!',
-      'You\'ve completed all your tasks for today!',
+      `${greeting}You\'ve completed all your tasks for today!`,
       'check'
     );
   } else {
     showNotification(
       'Daily Reminder',
-      `You have ${summary.pendingTasks} pending task${summary.pendingTasks > 1 ? 's' : ''} today`,
+      `${greeting}You have ${summary.pendingTasks} pending task${summary.pendingTasks > 1 ? 's' : ''} today. Complete them!`,
       'task'
     );
   }
@@ -305,17 +312,19 @@ export const sendDailyReminder = () => {
 // Send routine reminder notification
 export const sendRoutineReminder = () => {
   const summary = getDailySummary();
+  const username = getUsername();
+  const greeting = username ? `Hyyy ${username}! ` : 'Hey! ';
   
   if (summary.pendingRoutines > 0) {
     showNotification(
       'Routine Reminder',
-      `${summary.pendingRoutines} routine${summary.pendingRoutines > 1 ? 's are' : ' is'} incomplete today`,
+      `${greeting}${summary.pendingRoutines} routine${summary.pendingRoutines > 1 ? 's are' : ' is'} incomplete. Complete them!`,
       'routine'
     );
   } else if (summary.totalTasks > 0) {
     showNotification(
       'Great Job!',
-      'All routines completed for today!',
+      `${greeting}All routines completed for today!`,
       'check'
     );
   }
@@ -359,9 +368,11 @@ export const scheduleNotifications = () => {
       if (targetTime > now) {
         const timeout = setTimeout(() => {
           console.log('Firing notification for task:', task.text);
+          const username = getUsername();
+          const greeting = username ? `Hyyy ${username}! ` : '';
           showNotification(
             'Task Reminder',
-            task.text,
+            `${greeting}${task.text} - Complete it now!`,
             'clock'
           );
         }, msUntilTask);
@@ -389,9 +400,12 @@ export const scheduleNotifications = () => {
         if (targetTime > now) {
           const msUntilRoutine = targetTime - now;
           const timeout = setTimeout(() => {
+            const username = getUsername();
+            const greeting = username ? `Hyyy ${username}! ` : '';
+            const remaining = progress.total - progress.completed;
             showNotification(
               'Routine Reminder',
-              `${routine.name}: ${progress.completed}/${progress.total} completed`,
+              `${greeting}${routine.name} - ${remaining} task${remaining > 1 ? 's' : ''} remaining. Complete them!`,
               'routine'
             );
           }, msUntilRoutine);
@@ -488,9 +502,11 @@ export const initializeNotifications = async () => {
 // Test notification
 export const sendTestNotification = () => {
   console.log('Sending test notification...');
+  const username = getUsername();
+  const greeting = username ? `Hyyy ${username}! ` : '';
   showNotification(
     'Notifications Enabled',
-    'You\'ll receive reminders at your scheduled times',
+    `${greeting}You\'ll receive reminders at your scheduled times!`,
     'bell'
   );
 };
