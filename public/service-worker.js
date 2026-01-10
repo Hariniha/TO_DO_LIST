@@ -20,9 +20,16 @@ self.addEventListener('activate', (event) => {
             }
           })
         );
-      })
+      }),
+      // Start checking for notifications
+      checkAndFireNotifications()
     ])
   );
+  
+  // Set up periodic check for notifications (every minute)
+  setInterval(() => {
+    checkAndFireNotifications();
+  }, 60000); // Check every minute
 });
 
 // Handle notification click
@@ -82,4 +89,65 @@ self.addEventListener('push', (event) => {
 // Handle notification close
 self.addEventListener('notificationclose', (event) => {
   console.log('Notification closed:', event.notification.tag);
+});
+// Function to check localStorage for due notifications
+async function checkAndFireNotifications() {
+  try {
+    // Get schedule from localStorage via clients
+    const clients = await self.clients.matchAll();
+    if (clients.length === 0) {
+      // No clients, but we can still access IndexedDB or use a different approach
+      // For now, we'll use periodic background sync when available
+      return;
+    }
+    
+    // Request schedule from active client
+    for (const client of clients) {
+      client.postMessage({ type: 'GET_NOTIFICATION_SCHEDULE' });
+    }
+  } catch (error) {
+    console.error('Error checking notifications:', error);
+  }
+}
+
+// Listen for messages from the app with notification schedule
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'NOTIFICATION_SCHEDULE') {
+    const schedule = event.data.schedule || [];
+    const username = event.data.username || '';
+    const now = Date.now();
+    
+    console.log('Received notification schedule:', schedule.length, 'items');
+    
+    // Check if any notifications are due (within the last 2 minutes to catch missed ones)
+    for (const item of schedule) {
+      const timeDiff = now - item.time;
+      
+      // Fire notification if it's due (within 2 minutes past or 1 minute future)
+      if (timeDiff >= -60000 && timeDiff <= 120000) {
+        const greeting = username ? `Hyyy ${username}! ` : '';
+        const body = item.body.includes('Hyyy') || item.body.includes('Hey') ? item.body : greeting + item.body;
+        
+        await self.registration.showNotification(item.title, {
+          body: body,
+          icon: '/logo.svg',
+          badge: '/favicon.svg',
+          vibrate: [200, 100, 200, 100, 200],
+          tag: item.id,
+          requireInteraction: false,
+          silent: false,
+          data: item,
+        });
+        
+        console.log('Fired notification:', item.title);
+      }
+    }
+  }
+});
+
+// Register for periodic background sync if available (limited browser support)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'check-notifications') {
+    event.waitUntil(checkAndFireNotifications());
+  }
 });

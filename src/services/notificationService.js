@@ -5,10 +5,38 @@ import { getRoutineProgress } from './routineService.js';
 
 // Notification settings storage
 const SETTINGS_KEY = 'daily_todo_notification_settings';
+const SCHEDULE_KEY = 'daily_todo_notification_schedule';
 
 // Get username for personalized notifications
 const getUsername = () => {
   return localStorage.getItem('daily_todo_username') || '';
+};
+
+// Save notification schedule for service worker
+const saveNotificationSchedule = (schedule) => {
+  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
+};
+
+// Get notification schedule
+export const getNotificationSchedule = () => {
+  const saved = localStorage.getItem(SCHEDULE_KEY);
+  return saved ? JSON.parse(saved) : [];
+};
+
+// Send schedule to service worker for background notifications
+const sendScheduleToServiceWorker = async () => {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    const schedule = getNotificationSchedule();
+    const username = getUsername();
+    
+    navigator.serviceWorker.controller.postMessage({
+      type: 'NOTIFICATION_SCHEDULE',
+      schedule: schedule,
+      username: username
+    });
+    
+    console.log('Sent notification schedule to service worker:', schedule.length, 'items');
+  }
 };
 
 const defaultSettings = {
@@ -349,11 +377,13 @@ export const scheduleNotifications = () => {
   
   if (!settings.enabled || Notification.permission !== 'granted') {
     console.log('Notifications not enabled or permission not granted');
+    saveNotificationSchedule([]); // Clear schedule
     return;
   }
 
   const now = new Date();
   const today = getTodayDate();
+  const schedule = []; // Store for service worker
   
   console.log('Scheduling notifications for today:', today);
   
@@ -370,6 +400,16 @@ export const scheduleNotifications = () => {
       
       // Only schedule if the time hasn't passed today
       if (targetTime > now) {
+        // Add to schedule for service worker
+        schedule.push({
+          id: `task-${task.id}`,
+          time: targetTime.getTime(),
+          type: 'task',
+          title: 'Task Reminder',
+          body: `${task.text} - Complete it now!`,
+          taskId: task.id
+        });
+        
         const timeout = setTimeout(() => {
           console.log('Firing notification for task:', task.text);
           const username = getUsername();
@@ -403,6 +443,18 @@ export const scheduleNotifications = () => {
         // Only schedule if the time hasn't passed today
         if (targetTime > now) {
           const msUntilRoutine = targetTime - now;
+          const remaining = progress.total - progress.completed;
+          
+          // Add to schedule for service worker
+          schedule.push({
+            id: `routine-${routine.id}`,
+            time: targetTime.getTime(),
+            type: 'routine',
+            title: 'Routine Reminder',
+            body: `${routine.name} - ${remaining} task${remaining > 1 ? 's' : ''} remaining. Complete them!`,
+            routineId: routine.id
+          });
+          
           const timeout = setTimeout(() => {
             const username = getUsername();
             const greeting = username ? `Hyyy ${username}! ` : '';
@@ -431,6 +483,16 @@ export const scheduleNotifications = () => {
     }
     
     const msUntilDaily = targetTime - now;
+    
+    // Add to schedule for service worker
+    schedule.push({
+      id: 'daily-reminder',
+      time: targetTime.getTime(),
+      type: 'daily',
+      title: 'Daily Reminder',
+      body: 'Check your tasks for today'
+    });
+    
     const timeout = setTimeout(() => {
       sendDailyReminder();
       scheduleNotifications(); // Reschedule for next day
@@ -450,6 +512,16 @@ export const scheduleNotifications = () => {
     }
     
     const msUntilRoutine = targetTime - now;
+    
+    // Add to schedule for service worker
+    schedule.push({
+      id: 'routine-reminder',
+      time: targetTime.getTime(),
+      type: 'routine-daily',
+      title: 'Routine Reminder',
+      body: 'Check your routines for today'
+    });
+    
     const timeout = setTimeout(() => {
       sendRoutineReminder();
       scheduleNotifications(); // Reschedule for next day
@@ -457,6 +529,10 @@ export const scheduleNotifications = () => {
     
     scheduledTimeouts.push(timeout);
   }
+  
+  // Save schedule to localStorage for service worker to check
+  saveNotificationSchedule(schedule);
+  console.log('Notification schedule saved:', schedule.length, 'items');
 };
 
 // Initialize notifications on app start
@@ -476,6 +552,14 @@ export const initializeNotifications = async () => {
     
     console.log('Scheduling notifications...');
     scheduleNotifications();
+    
+    // Send schedule to service worker every minute for background notifications
+    setInterval(() => {
+      sendScheduleToServiceWorker();
+    }, 60000); // Every minute
+    
+    // Send immediately
+    sendScheduleToServiceWorker();
     
     // Keep the page alive for notifications on mobile browsers
     if ('wakeLock' in navigator) {
