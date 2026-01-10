@@ -1,9 +1,23 @@
 // Service Worker for push notifications and background sync
 const CACHE_NAME = 'daily-todo-v1';
+const ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/logo.svg',
+  '/favicon.svg',
+  '/manifest.json'
+];
 
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Caching app shell...');
+        return cache.addAll(ASSETS_TO_CACHE);
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -150,4 +164,40 @@ self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'check-notifications') {
     event.waitUntil(checkAndFireNotifications());
   }
+});
+
+// Fetch event - serve from cache when offline
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(cachedResponse => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        // Not in cache, fetch from network
+        return fetch(event.request)
+          .then(response => {
+            // Don't cache non-successful responses
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+            
+            // Clone the response as it can only be consumed once
+            const responseToCache = response.clone();
+            
+            // Cache successful responses for offline use
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+            
+            return response;
+          })
+          .catch(() => {
+            // Network failed, try to return a cached fallback
+            return caches.match('/index.html');
+          });
+      })
+  );
 });
