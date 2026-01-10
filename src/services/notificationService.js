@@ -130,42 +130,46 @@ const playNotificationSound = () => {
   }
 };
 
-// Helper function to play the actual beep sounds
+// Helper function to play the actual beep sounds - longer ringtone
 const playBeeps = (audioContext) => {
   try {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    // Play a sequence of tones for a longer, more noticeable ringtone
+    const tones = [
+      { freq: 800, start: 0, duration: 0.15 },
+      { freq: 1000, start: 0.15, duration: 0.15 },
+      { freq: 1200, start: 0.3, duration: 0.2 },
+      { freq: 1000, start: 0.55, duration: 0.15 },
+      { freq: 800, start: 0.7, duration: 0.15 },
+      { freq: 1000, start: 0.9, duration: 0.15 },
+      { freq: 1200, start: 1.05, duration: 0.25 },
+    ];
     
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    tones.forEach((tone, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = tone.freq;
+      oscillator.type = 'sine';
+      
+      const startTime = audioContext.currentTime + tone.start;
+      const endTime = startTime + tone.duration;
+      
+      // Fade in and out for smoother sound
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.02);
+      gainNode.gain.setValueAtTime(0.5, endTime - 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, endTime);
+      
+      oscillator.start(startTime);
+      oscillator.stop(endTime);
+      
+      console.log(`Tone ${index + 1} scheduled at ${tone.start}s`);
+    });
     
-    // Higher frequency and louder volume for better audibility
-    oscillator.frequency.value = 1000; // Frequency in Hz (higher pitch)
-    oscillator.type = 'sine';
-    
-    // Louder volume
-    gainNode.gain.setValueAtTime(0.7, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.3);
-    
-    console.log('First beep played');
-    
-    // Add a second beep for double notification sound
-    setTimeout(() => {
-      const osc2 = audioContext.createOscillator();
-      const gain2 = audioContext.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioContext.destination);
-      osc2.frequency.value = 1200;
-      osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0.7, audioContext.currentTime);
-      gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-      osc2.start(audioContext.currentTime);
-      osc2.stop(audioContext.currentTime + 0.2);
-      console.log('Second beep played');
-    }, 150);
+    console.log('Long ringtone sequence started');
   } catch (error) {
     console.error('Error playing beeps:', error);
   }
