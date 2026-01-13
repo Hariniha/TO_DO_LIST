@@ -271,6 +271,10 @@ function App() {
               </button>
             </div>
             <div className="help-menu-content">
+              <div className="help-section notification-warning">
+                <p><strong>⚠️ Important:</strong> Notifications only work when the app is open or running in the background. If you completely close the app, notifications will not be sent.</p>
+              </div>
+              
               <div className="help-section">
                 <h4><ClockIcon className="help-icon" /> Create Tasks</h4>
                 <ul>

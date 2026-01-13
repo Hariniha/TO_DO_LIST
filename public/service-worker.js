@@ -1,5 +1,9 @@
 // Service Worker for push notifications and background sync
 const CACHE_NAME = 'daily-todo-v1';
+const DB_NAME = 'daily-todo-notifications';
+const DB_VERSION = 1;
+const STORE_NAME = 'notification-schedule';
+
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,6 +11,56 @@ const ASSETS_TO_CACHE = [
   '/favicon.svg',
   '/manifest.json'
 ];
+
+// Open IndexedDB for persistent storage
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+      }
+    };
+  });
+}
+
+// Save data to IndexedDB
+async function saveToIndexedDB(key, value) {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    await store.put({ key, value });
+    console.log('Saved to IndexedDB:', key);
+  } catch (error) {
+    console.error('Error saving to IndexedDB:', error);
+  }
+}
+
+// Get data from IndexedDB
+async function getFromIndexedDB(key) {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction([STORE_NAME], 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(key);
+    
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        resolve(request.result ? request.result.value : null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error('Error reading from IndexedDB:', error);
+    return null;
+  }
+}
 
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
@@ -34,16 +88,9 @@ self.addEventListener('activate', (event) => {
             }
           })
         );
-      }),
-      // Start checking for notifications
-      checkAndFireNotifications()
+      })
     ])
   );
-  
-  // Set up periodic check for notifications (every minute)
-  setInterval(() => {
-    checkAndFireNotifications();
-  }, 60000); // Check every minute
 });
 
 // Handle notification click
@@ -104,43 +151,42 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclose', (event) => {
   console.log('Notification closed:', event.notification.tag);
 });
-// Function to check localStorage for due notifications
+
+// Check for due notifications from IndexedDB
 async function checkAndFireNotifications() {
   try {
-    // Get schedule from localStorage via clients
-    const clients = await self.clients.matchAll();
-    if (clients.length === 0) {
-      // No clients, but we can still access IndexedDB or use a different approach
-      // For now, we'll use periodic background sync when available
+    const schedule = await getFromIndexedDB('schedule');
+    const username = await getFromIndexedDB('username');
+    const firedNotifications = await getFromIndexedDB('firedNotifications') || {};
+    
+    if (!schedule || schedule.length === 0) {
+      console.log('No notification schedule found');
       return;
     }
     
-    // Request schedule from active client
-    for (const client of clients) {
-      client.postMessage({ type: 'GET_NOTIFICATION_SCHEDULE' });
-    }
-  } catch (error) {
-    console.error('Error checking notifications:', error);
-  }
-}
-
-// Listen for messages from the app with notification schedule
-self.addEventListener('message', async (event) => {
-  if (event.data && event.data.type === 'NOTIFICATION_SCHEDULE') {
-    const schedule = event.data.schedule || [];
-    const username = event.data.username || '';
     const now = Date.now();
+    const today = new Date().toISOString().split('T')[0];
+    const newFiredNotifications = {};
     
-    console.log('Received notification schedule:', schedule.length, 'items');
+    console.log('Checking notifications...', schedule.length, 'items');
     
-    // Check if any notifications are due (within the last 2 minutes to catch missed ones)
     for (const item of schedule) {
+      const notificationKey = `${item.id}-${today}`;
+      
+      // Skip if already fired today
+      if (firedNotifications[notificationKey]) {
+        console.log('Notification already fired:', item.id);
+        continue;
+      }
+      
       const timeDiff = now - item.time;
       
-      // Fire notification if it's due (within 2 minutes past or 1 minute future)
-      if (timeDiff >= -60000 && timeDiff <= 120000) {
+      // Fire notification if it's due (within 5 minutes past, not future)
+      if (timeDiff >= 0 && timeDiff <= 300000) {
         const greeting = username ? `Hyyy ${username}! ` : '';
         const body = item.body.includes('Hyyy') || item.body.includes('Hey') ? item.body : greeting + item.body;
+        
+        console.log('Firing notification:', item.title, 'Time diff:', timeDiff);
         
         await self.registration.showNotification(item.title, {
           body: body,
@@ -153,9 +199,60 @@ self.addEventListener('message', async (event) => {
           data: item,
         });
         
+        // Mark as fired
+        newFiredNotifications[notificationKey] = now;
         console.log('Fired notification:', item.title);
       }
     }
+    
+    // Update fired notifications in IndexedDB
+    if (Object.keys(newFiredNotifications).length > 0) {
+      const updatedFiredNotifications = { ...firedNotifications, ...newFiredNotifications };
+      
+    console.log('Periodic sync triggered');
+    event.waitUntil(checkAndFireNotifications());
+  }
+});
+
+// Use alarms API for scheduled notifications (Chrome extension API - not available in service workers)
+// Instead, we'll rely on the app to send wake-up messages
+
+// Background Fetch API for keeping service worker alive
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'check-notifications') {
+    console.log('Sync event triggered');
+      // Clean up old entries (older than 2 days)
+      const twoDaysAgo = now - (2 * 24 * 60 * 60 * 1000);
+      Object.keys(updatedFiredNotifications).forEach(key => {
+        if (updatedFiredNotifications[key] < twoDaysAgo) {
+          delete updatedFiredNotifications[key];
+        }
+      });
+      
+      await saveToIndexedDB('firedNotifications', updatedFiredNotifications);
+    }
+  } catch (error) {
+    console.error('Error checking notifications:', error);
+  }
+}
+
+// Listen for messages from the app with notification schedule
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'NOTIFICATION_SCHEDULE') {
+    const schedule = event.data.schedule || [];
+    const username = event.data.username || '';
+    
+    console.log('Received notification schedule:', schedule.length, 'items');
+    
+    // Save to IndexedDB for persistent storage
+    await saveToIndexedDB('schedule', schedule);
+    await saveToIndexedDB('username', username);
+    
+    // Check immediately for any due notifications
+    await checkAndFireNotifications();
+  } else if (event.data && event.data.type === 'CHECK_NOTIFICATIONS') {
+    // Manual trigger from app
+    await checkAndFireNotifications();
   }
 });
 

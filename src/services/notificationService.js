@@ -88,6 +88,33 @@ export const registerServiceWorker = async () => {
         });
       }
       
+      // Register periodic background sync if available (Chrome Android)
+      try {
+        if ('periodicSync' in registration) {
+          const status = await navigator.permissions.query({
+            name: 'periodic-background-sync',
+          });
+          if (status.state === 'granted') {
+            await registration.periodicSync.register('check-notifications', {
+              minInterval: 60 * 1000, // 1 minute (browser may adjust)
+            });
+            console.log('Periodic background sync registered');
+          }
+        }
+      } catch (error) {
+        console.log('Periodic sync not supported:', error);
+      }
+      
+      // Register sync event as fallback
+      try {
+        if ('sync' in registration) {
+          await registration.sync.register('check-notifications');
+          console.log('Sync event registered');
+        }
+      } catch (error) {
+        console.log('Sync not supported:', error);
+      }
+      
       return registration;
     } catch (error) {
       console.error('Service Worker registration failed:', error);
@@ -553,13 +580,31 @@ export const initializeNotifications = async () => {
     console.log('Scheduling notifications...');
     scheduleNotifications();
     
-    // Send schedule to service worker every minute for background notifications
-    setInterval(() => {
+    // Send schedule to service worker immediately and every minute
+    const sendScheduleInterval = setInterval(() => {
       sendScheduleToServiceWorker();
     }, 60000); // Every minute
     
     // Send immediately
-    sendScheduleToServiceWorker();
+    await sendScheduleToServiceWorker();
+    
+    // Also trigger service worker check every minute via message
+    setInterval(() => {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CHECK_NOTIFICATIONS'
+        });
+      }
+    }, 60000);
+    
+    // Listen for visibility change to refresh schedule when app comes back
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('App became visible, refreshing notification schedule');
+        scheduleNotifications();
+        await sendScheduleToServiceWorker();
+      }
+    });
     
     // Keep the page alive for notifications on mobile browsers
     if ('wakeLock' in navigator) {
